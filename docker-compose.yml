@@ -1,0 +1,48 @@
+version: "3.3"
+
+services:
+  image-diff:
+    image: "ghcr.io/befront-academy/image-diff:master"
+    networks:
+      - befront_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.easybusy-boardapp-api.rule=Host(`dev.befront.io`) && PathPrefix(`/image-diff`)"
+      - "traefik.http.services.easybusy-boardapp-api.loadbalancer.server.port=8090"
+      - "traefik.http.middlewares.easybusy-boardapp-api.compress=true"
+      - "com.centurylinklabs.watchtower.enable=true"          
+
+  befront-api:
+    image: "ghcr.io/befront-academy/befront-api:develop"
+    networks:
+      - befront_net
+    environment:
+      - MONGODB_URL="mongodb://befront:befront-databaseinstance1.chz861pyzaej.eu-central-1.docdb.amazonaws.com:27017/befront_test?replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.easybusy-boardapp-api.rule=Host(`dev.befront.io`) && PathPrefix(`/api`, `/socket.io`)"
+      - "traefik.http.services.easybusy-boardapp-api.loadbalancer.server.port=5000"
+      - "traefik.http.middlewares.easybusy-boardapp-api.compress=true"
+      - "com.centurylinklabs.watchtower.enable=true"          
+
+  #------------------------------------------------------------------------------------
+  traefik:
+    container_name: traefik
+    restart: unless-stopped
+    image: traefik:v2.7
+    ports:
+      - "80:80"
+    networks:
+      - befront_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./etc/traefik.yml:/traefik.yml:ro
+      - /srv/traefik/log:/log
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.rule=Host(`dev.befront.io`)"
+networks:
+  befront_net:
